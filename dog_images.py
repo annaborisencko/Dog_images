@@ -66,15 +66,37 @@ def create_folder(breed):
     except requests.exceptions.RequestException as exc:
         return False, f"Сетевая ошибка при создании папки: {str(exc)}"
 
-#Функция получения изображений породы и всех ее подпород
-def get_images_by_breed(breed):
+#Функция получения всех подпород заданной породы
+def get_sub_breed_list(breed):   
     try:
-        response = requests.get(f"{DOG_URL}{breed}/images")
+        response = requests.get(f"{DOG_URL}{breed}/list")
         if response.status_code != 200:
             return False, f"Порода собак '{breed}' отсутвует в справочнике ресурса {DOG_URL}"
         else:
-            images_list = response.json()['message']
-            return images_list, f"Получен список всех изображений породы, включая все ее подпороды."
+            sub_breed_list = response.json()['message']
+            sub_breed_list.append(breed)
+            return sub_breed_list, f"Получен список всех подпород заданной породы. Всего {len(sub_breed_list)-1} подпороды"
+    except requests.exceptions.RequestException as exc:
+        return False, f"Сетевая ошибка при получении списка подпород породы: {str(exc)}"
+
+#Функция получения изображений породы и всех ее подпород
+def get_images_by_breed(breed):
+    sub_breed_list, sub_breed_list_message = get_sub_breed_list(breed)
+    if not sub_breed_list:
+        return sub_breed_list_message
+    print(sub_breed_list_message)
+    images_list = []
+    try:
+        for sub_breed in sub_breed_list:
+            if sub_breed == breed:
+                response = requests.get(f"{DOG_URL}{sub_breed}/images")
+            else:
+                response = requests.get(f"{DOG_URL}{breed}/{sub_breed}/images")
+            if response.status_code != 200:
+                return False, f"Порода собак '{sub_breed}' отсутвует в справочнике ресурса {DOG_URL}"
+            else:
+                images_list += response.json()['message']       
+        return images_list, f"Получен список всех изображений породы, включая все ее подпороды. Всего {len(images_list)} изображений"
     except requests.exceptions.RequestException as exc:
         return False, f"Сетевая ошибка при получении изображений породы: {str(exc)}"
 
@@ -180,8 +202,9 @@ def upload_images_to_YA_DISK(breed):
     
 
 breed = input('Полный список пород доступен по адресу: https://dog.ceo/dog-api/breeds-list. Введите наименование породы собак на английском языке, например, african: ')
+
 YA_TOKEN = input('Введите значение OAuth-токена, полученного для работы с API Яндекс.Диска: ')
 
 result = upload_images_to_YA_DISK(breed)
-
 print(result)
+
